@@ -48,6 +48,19 @@ class Agent(MCPAggregator):
         context: Optional["Context"] = None,
         **kwargs,
     ):
+        """
+        Initialize the agent with a name, instruction, and optional server names, functions, and context.
+
+        Args:
+            name: The name of the agent.
+            instruction: The instruction or purpose of the agent.
+            server_names: A list of server names the agent should connect to.
+            functions: A list of functions the agent can call as tools.
+            connection_persistence: Whether to maintain persistent connections to servers.
+            human_input_callback: Callback for handling human input requests.
+            context: Optional context for the agent.
+            **kwargs: Additional keyword arguments.
+        """
         super().__init__(
             context=context,
             server_names=server_names or [],
@@ -157,6 +170,12 @@ class Agent(MCPAggregator):
         return result
 
     async def list_tools(self) -> ListToolsResult:
+        """
+        List all tools available to the agent, including function tools and human input tool.
+
+        Returns:
+            A ListToolsResult object containing the list of tools.
+        """
         if not self.initialized:
             await self.initialize()
 
@@ -189,10 +208,19 @@ class Agent(MCPAggregator):
 
         return result
 
-    # todo would prefer to use tool_name to disambiguate agent name
     async def call_tool(
         self, name: str, arguments: dict | None = None
     ) -> CallToolResult:
+        """
+        Call a tool by its name with the provided arguments.
+
+        Args:
+            name: The name of the tool to call.
+            arguments: The arguments to pass to the tool.
+
+        Returns:
+            A CallToolResult object containing the result of the tool call.
+        """
         if name == HUMAN_INPUT_TOOL_NAME:
             # Call the human input tool
             return await self._call_human_input_tool(arguments)
@@ -207,7 +235,15 @@ class Agent(MCPAggregator):
     async def _call_human_input_tool(
         self, arguments: dict | None = None
     ) -> CallToolResult:
-        # Handle human input request
+        """
+        Handle the human input request tool call.
+
+        Args:
+            arguments: The arguments for the human input request.
+
+        Returns:
+            A CallToolResult object containing the result of the human input request.
+        """
         try:
             request = HumanInputRequest(**arguments["request"])
             result: HumanInputResponse = await self.request_human_input(request=request)

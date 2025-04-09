@@ -84,6 +84,15 @@ class MCPApp:
 
     @property
     def context(self) -> Context:
+        """
+        Get the current application context.
+
+        Returns:
+            The current application context.
+
+        Raises:
+            RuntimeError: If the application is not initialized.
+        """
         if self._context is None:
             raise RuntimeError(
                 "MCPApp not initialized, please call initialize() first, or use async with app.run()."
@@ -92,38 +101,92 @@ class MCPApp:
 
     @property
     def config(self):
+        """
+        Get the current application configuration.
+
+        Returns:
+            The current application configuration.
+        """
         return self._context.config
 
     @property
     def server_registry(self):
+        """
+        Get the server registry.
+
+        Returns:
+            The server registry.
+        """
         return self._context.server_registry
 
     @property
     def executor(self):
+        """
+        Get the executor.
+
+        Returns:
+            The executor.
+        """
         return self._context.executor
 
     @property
     def engine(self):
+        """
+        Get the execution engine.
+
+        Returns:
+            The execution engine.
+        """
         return self.executor.execution_engine
 
     @property
     def upstream_session(self):
+        """
+        Get the upstream session.
+
+        Returns:
+            The upstream session.
+        """
         return self._context.upstream_session
 
     @upstream_session.setter
     def upstream_session(self, value):
+        """
+        Set the upstream session.
+
+        Args:
+            value: The upstream session to set.
+        """
         self._context.upstream_session = value
 
     @property
     def workflows(self):
+        """
+        Get the registered workflows.
+
+        Returns:
+            A dictionary of registered workflows.
+        """
         return self._workflows
 
     @property
     def tasks(self):
+        """
+        Get the registered tasks.
+
+        Returns:
+            A list of registered tasks.
+        """
         return self.context.task_registry.list_activities()
 
     @property
     def logger(self):
+        """
+        Get the logger for the application.
+
+        Returns:
+            The logger for the application.
+        """
         if self._logger is None:
             session_id = self._context.session_id if self._context else None
             self._logger = get_logger(f"mcp_agent.{self.name}", session_id=session_id)
