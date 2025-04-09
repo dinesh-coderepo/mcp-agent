@@ -76,6 +76,12 @@ class MCPAggregator(ContextDependent):
     model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
     async def __aenter__(self):
+        """
+        Initialize the aggregator and load tools and prompts from all servers.
+
+        Returns:
+            The initialized MCPAggregator instance.
+        """
         if self.initialized:
             return self
 
@@ -113,6 +119,9 @@ class MCPAggregator(ContextDependent):
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """
+        Close the aggregator and release resources.
+        """
         await self.close()
 
     def __init__(
@@ -124,9 +133,14 @@ class MCPAggregator(ContextDependent):
         **kwargs,
     ):
         """
-        :param server_names: A list of server names to connect to.
-        :param connection_persistence: Whether to maintain persistent connections to servers (default: True).
-        Note: The server names must be resolvable by the gen_client function, and specified in the server registry.
+        Initialize the MCPAggregator.
+
+        Args:
+            server_names: A list of server names to connect to.
+            connection_persistence: Whether to maintain persistent connections to servers (default: True).
+            context: Optional context for the aggregator.
+            name: Optional name for the aggregator.
+            **kwargs: Additional keyword arguments.
         """
         super().__init__(
             context=context,
@@ -230,8 +244,14 @@ class MCPAggregator(ContextDependent):
         If connection_persistence is True, the aggregator will maintain a
         persistent connection to the servers for as long as this aggregator is around.
         By default we do not maintain a persistent connection.
-        """
 
+        Args:
+            server_names: A list of server names to connect to.
+            connection_persistence: Whether to maintain persistent connections to servers (default: False).
+
+        Returns:
+            The initialized MCPAggregator instance.
+        """
         logger.info(f"Creating MCPAggregator with servers: {server_names}")
 
         instance = cls(
@@ -254,8 +274,13 @@ class MCPAggregator(ContextDependent):
     async def load_server(self, server_name: str):
         """
         Load tools and prompts from a single server and update the index of namespaced tool/prompt names for that server.
-        """
 
+        Args:
+            server_name: The name of the server to load.
+
+        Returns:
+            A tuple containing the list of tools and prompts loaded from the server.
+        """
         if server_name not in self.server_names:
             raise ValueError(f"Server '{server_name}' not found in server list")
 
@@ -305,8 +330,10 @@ class MCPAggregator(ContextDependent):
     async def load_servers(self, force: bool = False):
         """
         Discover tools and prompts from each server in parallel and build an index of namespaced tool/prompt names.
-        """
 
+        Args:
+            force: Whether to force reloading the servers even if already initialized (default: False).
+        """
         if self.initialized and not force:
             logger.debug("MCPAggregator already initialized. Skipping reload.")
             return
@@ -343,7 +370,15 @@ class MCPAggregator(ContextDependent):
         self.initialized = True
 
     async def get_capabilities(self, server_name: str):
-        """Get server capabilities if available."""
+        """
+        Get server capabilities if available.
+
+        Args:
+            server_name: The name of the server to get capabilities for.
+
+        Returns:
+            The server capabilities if available, otherwise None.
+        """
         if self.connection_persistence:
             try:
                 server_conn = await self._persistent_connection_manager.get_server(
@@ -381,6 +416,9 @@ class MCPAggregator(ContextDependent):
     async def refresh(self, server_name: str | None = None):
         """
         Refresh the tools and prompts from the specified server or all servers.
+
+        Args:
+            server_name: The name of the server to refresh (optional).
         """
         if server_name:
             await self.load_server(server_name)
@@ -388,7 +426,12 @@ class MCPAggregator(ContextDependent):
             await self.load_servers(force=True)
 
     async def list_servers(self) -> List[str]:
-        """Return the list of server names aggregated by this agent."""
+        """
+        List the names of all servers aggregated by this agent.
+
+        Returns:
+            A list of server names.
+        """
         if not self.initialized:
             await self.load_servers()
 
@@ -396,7 +439,13 @@ class MCPAggregator(ContextDependent):
 
     async def list_tools(self, server_name: str | None = None) -> ListToolsResult:
         """
-        :return: Tools from all servers aggregated, and renamed to be dot-namespaced by server name.
+        List all tools available to the agent, optionally filtered by server name.
+
+        Args:
+            server_name: The name of the server to filter tools by (optional).
+
+        Returns:
+            A ListToolsResult object containing the list of tools.
         """
         if not self.initialized:
             await self.load_servers()
@@ -423,6 +472,13 @@ class MCPAggregator(ContextDependent):
     ) -> CallToolResult:
         """
         Call a namespaced tool, e.g., 'server_name.tool_name'.
+
+        Args:
+            name: The namespaced name of the tool to call.
+            arguments: The arguments to pass to the tool (optional).
+
+        Returns:
+            A CallToolResult object containing the result of the tool call.
         """
         if not self.initialized:
             await self.load_servers()
@@ -512,7 +568,13 @@ class MCPAggregator(ContextDependent):
 
     async def list_prompts(self, server_name: str | None = None) -> ListPromptsResult:
         """
-        :return: Prompts from all servers aggregated, and renamed to be dot-namespaced by server name.
+        List all prompts available to the agent, optionally filtered by server name.
+
+        Args:
+            server_name: The name of the server to filter prompts by (optional).
+
+        Returns:
+            A ListPromptsResult object containing the list of prompts.
         """
         if not self.initialized:
             await self.load_servers()
@@ -677,6 +739,15 @@ class MCPAggregator(ContextDependent):
         return server_name, local_name
 
     async def _start_server(self, server_name: str):
+        """
+        Start a server and return the client session.
+
+        Args:
+            server_name: The name of the server to start.
+
+        Returns:
+            The client session for the started server.
+        """
         if self.connection_persistence:
             logger.info(
                 f"Creating persistent connection to server: {server_name}",
@@ -708,6 +779,16 @@ class MCPAggregator(ContextDependent):
                 return client
 
     async def _fetch_tools(self, client: ClientSession, server_name: str) -> List[Tool]:
+        """
+        Fetch tools from a server.
+
+        Args:
+            client: The client session for the server.
+            server_name: The name of the server to fetch tools from.
+
+        Returns:
+            A list of tools fetched from the server.
+        """
         # Only fetch tools if the server supports them
         capabilities = await self.get_capabilities(server_name)
         if not capabilities or not capabilities.tools:
@@ -739,6 +820,16 @@ class MCPAggregator(ContextDependent):
     async def _fetch_prompts(
         self, client: ClientSession, server_name: str
     ) -> List[Prompt]:
+        """
+        Fetch prompts from a server.
+
+        Args:
+            client: The client session for the server.
+            server_name: The name of the server to fetch prompts from.
+
+        Returns:
+            A list of prompts fetched from the server.
+        """
         # Only fetch prompts if the server supports them
         capabilities = await self.get_capabilities(server_name)
         if not capabilities or not capabilities.prompts:
@@ -769,6 +860,15 @@ class MCPAggregator(ContextDependent):
             return prompts
 
     async def _fetch_capabilities(self, server_name: str):
+        """
+        Fetch tools and prompts from a server.
+
+        Args:
+            server_name: The name of the server to fetch capabilities from.
+
+        Returns:
+            A tuple containing the server name, list of tools, and list of prompts.
+        """
         tools: List[Tool] = []
         prompts: List[Prompt] = []
 
@@ -805,14 +905,28 @@ class MCPCompoundServer(Server):
         self.get_prompt()(self._get_prompt)
 
     async def _list_tools(self) -> List[Tool]:
-        """List all tools aggregated from connected MCP servers."""
+        """
+        List all tools aggregated from connected MCP servers.
+
+        Returns:
+            A list of tools aggregated from connected MCP servers.
+        """
         tools_result = await self.aggregator.list_tools()
         return tools_result.tools
 
     async def _call_tool(
         self, name: str, arguments: dict | None = None
     ) -> CallToolResult:
-        """Call a specific tool from the aggregated servers."""
+        """
+        Call a specific tool from the aggregated servers.
+
+        Args:
+            name: The name of the tool to call.
+            arguments: The arguments to pass to the tool (optional).
+
+        Returns:
+            A CallToolResult object containing the result of the tool call.
+        """
         try:
             result = await self.aggregator.call_tool(name=name, arguments=arguments)
             return result.content
@@ -825,7 +939,12 @@ class MCPCompoundServer(Server):
             )
 
     async def _list_prompts(self) -> List[Prompt]:
-        """List available prompts from the connected MCP servers."""
+        """
+        List available prompts from the connected MCP servers.
+
+        Returns:
+            A list of prompts aggregated from connected MCP servers.
+        """
         list_prompts_result = await self.aggregator.list_prompts()
         return list_prompts_result.prompts
 
@@ -838,6 +957,9 @@ class MCPCompoundServer(Server):
         Args:
             name: Name of the prompt to get (optionally namespaced)
             arguments: Optional dictionary of string arguments for prompt templating
+
+        Returns:
+            A GetPromptResult object containing the resolved prompt.
         """
         try:
             result = await self.aggregator.get_prompt(name=name, arguments=arguments)
@@ -848,7 +970,9 @@ class MCPCompoundServer(Server):
             )
 
     async def run_stdio_async(self) -> None:
-        """Run the server using stdio transport."""
+        """
+        Run the server using stdio transport.
+        """
         async with stdio_server() as (read_stream, write_stream):
             await self.run(
                 read_stream=read_stream,
